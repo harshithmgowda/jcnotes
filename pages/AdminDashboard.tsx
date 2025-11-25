@@ -212,15 +212,23 @@ const AdminDashboard: React.FC = () => {
       return;
     }
 
+    // Validate file type (allow PDFs primarily)
+    if (file && file.type && !file.type.includes('pdf')) {
+      // Some browsers/OS combos may not set type; we only warn when type is present and not pdf
+      if (!confirm('The selected file does not appear to be a PDF. Continue anyway?')) return;
+    }
+
     setUploading(true);
     try {
       const fileName = `${Date.now()}_${file.name.replace(/\s/g, '_')}`;
       const filePath = `${uploadData.branchId}/${uploadData.semesterId}/${uploadData.subjectId}/${uploadData.unitId}/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage.from('notes').upload(filePath, file);
+      // Upload file to Supabase storage
+      const { error: uploadError } = await supabase.storage.from('notes').upload(filePath, file, { upsert: false });
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage.from('notes').getPublicUrl(filePath);
+      const { data: publicData } = supabase.storage.from('notes').getPublicUrl(filePath);
+      const publicUrl = (publicData && (publicData as any).publicUrl) || '';
 
       const { error: dbError } = await supabase.from('notes').insert([{
         unit_id: uploadData.unitId,
@@ -232,15 +240,19 @@ const AdminDashboard: React.FC = () => {
 
       if (dbError) throw dbError;
 
+      // Success: reset form and refetch notes so UI stays in sync
       alert('Note uploaded successfully!');
       setUploadData(prev => ({ ...prev, title: '' }));
       setFile(null);
       const fileInput = document.getElementById('file-upload') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
 
+      // Re-fetch recent notes so the uploaded item shows up immediately
+      await fetchRecentNotes();
+
     } catch (error: any) {
-      console.error(error);
-      alert(`Error: ${error.message}`);
+      console.error('Upload error:', error);
+      alert(`Error uploading note: ${error.message || JSON.stringify(error)}`);
     } finally {
       setUploading(false);
     }
@@ -252,73 +264,44 @@ const AdminDashboard: React.FC = () => {
     setDeletingIds(prev => ({ ...prev, [note.id]: true }));
 
     try {
-      console.log('=== Starting deletion process ===');
-      console.log('Note ID:', note.id);
-      console.log('File path:', note.file_path);
+      console.log('=== Starting deletion (server) process ===');
 
-      // Step 1: Delete from storage (if file_path exists)
-      if (note.file_path) {
-        console.log('Attempting to delete file from storage bucket "notes"...');
+      // Get Supabase session access token
+      const session = await supabase.auth.getSession();
+      const accessToken = session?.data?.session?.access_token;
 
-        const { data: deleteData, error: storageError } = await supabase.storage
-          .from('notes')
-          .remove([note.file_path]);
-
-        console.log('Storage delete response:', { data: deleteData, error: storageError });
-
-        if (storageError) {
-          console.error('❌ Storage deletion error:', storageError);
-
-          const msg = (storageError.message || '').toLowerCase();
-          const status = (storageError as any)?.status || 0;
-
-          console.log('Error details - Status:', status, 'Message:', msg);
-
-          // Check for permission errors
-          if (status === 403 || /permission|forbid|not allowed|unauthorized|insufficient|policy/i.test(msg)) {
-            alert('❌ Storage deletion failed due to permissions.\n\nYou need to add a DELETE policy in Supabase:\n\n1. Go to Supabase Dashboard → Storage → Policies\n2. Run this SQL in the SQL Editor:\n\ncreate policy "Public delete files"\non storage.objects\nfor delete\nusing ( bucket_id = \'notes\' );\n\nSee supabase-delete-policy.sql file for details.');
-            return;
-          }
-
-          // If file not found (already deleted), that's OK - proceed to DB delete
-          if (/not found|no such file|404/i.test(msg)) {
-            console.warn('⚠️ Storage file not found (may already be deleted), proceeding to remove DB record...');
-          } else {
-            // For other errors, abort to avoid inconsistency
-            alert(`❌ Storage deletion failed: ${storageError.message}\n\nCheck browser console for details. Aborting to avoid data inconsistency.`);
-            return;
-          }
-        } else {
-          console.log('✅ Storage file deleted successfully');
-        }
-      } else {
-        console.warn('⚠️ No file_path in note record, skipping storage deletion');
+      if (!accessToken) {
+        alert('You must be logged in as an admin to delete notes.');
+        return;
       }
 
-      // Step 2: Delete from database
-      console.log('Deleting note from database...');
-      const { error: dbError } = await supabase
-        .from('notes')
-        .delete()
-        .eq('id', note.id);
+      const serverUrl = (import.meta.env.VITE_DELETE_SERVER_URL) || window.location.origin;
+      const res = await fetch(`${serverUrl}/delete-note`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ id: note.id })
+      });
 
-      if (dbError) {
-        console.error('❌ Database deletion error:', dbError);
-        throw dbError;
+      const payload = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        console.error('Server delete failed:', payload || res.statusText);
+        alert(`Delete failed: ${(payload && payload.message) || res.statusText}`);
+        return;
       }
 
-      console.log('✅ Database record deleted successfully');
+      console.log('Server delete response:', payload);
 
-      // Step 3: Re-fetch notes to ensure UI is in sync
-      console.log('Re-fetching notes list...');
+      // Re-fetch notes to update UI
       await fetchRecentNotes();
-
-      console.log('=== Deletion process complete ===');
       alert('✅ Note deleted successfully!');
 
     } catch (err: any) {
-      console.error('❌ Deletion failed with exception:', err);
-      alert(`❌ Deletion failed: ${err.message || 'Unknown error'}\n\nCheck browser console for details.`);
+      console.error('Deletion failed with exception:', err);
+      alert(`Deletion failed: ${err.message || JSON.stringify(err)}`);
     } finally {
       setDeletingIds(prev => ({ ...prev, [note.id]: false }));
     }
