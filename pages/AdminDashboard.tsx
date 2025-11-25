@@ -255,10 +255,13 @@ const AdminDashboard: React.FC = () => {
       }
       const { error } = await supabase.from('notes').delete().eq('id', note.id);
       if (error) throw error;
-      fetchRecentNotes(); // Re-fetch notes to ensure UI is in sync with the database
+
+      // Re-fetch notes from the database to ensure the UI is in sync
+      await fetchRecentNotes();
+
       alert('Note deleted');
     } catch (err: any) {
-      alert(err.message);
+      alert(`Deletion failed: ${err.message}`);
     } finally {
       setDeletingIds(prev => ({ ...prev, [note.id]: false }));
     }
