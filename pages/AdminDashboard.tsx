@@ -504,14 +504,18 @@ const AdminDashboard: React.FC = () => {
             </div>
              <div className="flex-1 overflow-y-auto p-2 space-y-1">
               {semesters.map(semester => (
-                <button
-                  key={semester.id}
-                  onClick={() => handleSelectSemester(semester)}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center justify-between ${selectedSemester?.id === semester.id ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}
-                >
-                  {semester.name}
-                  <ChevronRight className={`w-4 h-4 ${selectedSemester?.id === semester.id ? 'text-indigo-500' : 'text-slate-300'}`} />
-                </button>
+                <div key={semester.id} className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleSelectSemester(semester)}
+                    className={`flex-1 text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center justify-between ${selectedSemester?.id === semester.id ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    {semester.name}
+                    <ChevronRight className={`w-4 h-4 ${selectedSemester?.id === semester.id ? 'text-indigo-500' : 'text-slate-300'}`} />
+                  </button>
+                  <button onClick={() => deleteSemester(semester)} className="text-slate-300 hover:text-red-500">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               ))}
               {selectedBranch && semesters.length === 0 && <p className="text-xs text-slate-400 p-2 text-center">No semesters added</p>}
             </div>
@@ -538,14 +542,18 @@ const AdminDashboard: React.FC = () => {
             </div>
              <div className="flex-1 overflow-y-auto p-2 space-y-1">
               {subjects.map(subject => (
-                <button
-                  key={subject.id}
-                  onClick={() => handleSelectSubject(subject)}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center justify-between ${selectedSubject?.id === subject.id ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}
-                >
-                  {subject.name}
-                  <ChevronRight className={`w-4 h-4 ${selectedSubject?.id === subject.id ? 'text-indigo-500' : 'text-slate-300'}`} />
-                </button>
+                <div key={subject.id} className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleSelectSubject(subject)}
+                    className={`flex-1 text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center justify-between ${selectedSubject?.id === subject.id ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    {subject.name}
+                    <ChevronRight className={`w-4 h-4 ${selectedSubject?.id === subject.id ? 'text-indigo-500' : 'text-slate-300'}`} />
+                  </button>
+                  <button onClick={() => deleteSubject(subject)} className="text-slate-300 hover:text-red-500">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               ))}
               {selectedSemester && subjects.length === 0 && <p className="text-xs text-slate-400 p-2 text-center">No subjects added</p>}
             </div>
@@ -574,10 +582,17 @@ const AdminDashboard: React.FC = () => {
               {units.map(unit => (
                 <div
                   key={unit.id}
-                  className="w-full text-left px-3 py-2 rounded-lg text-sm text-slate-600 bg-white border border-transparent hover:border-slate-200 flex items-center"
+                  className="flex items-center gap-2"
                 >
-                  <div className="w-1.5 h-1.5 rounded-full bg-slate-300 mr-2"></div>
-                  {unit.name}
+                  <div
+                    className="flex-1 text-left px-3 py-2 rounded-lg text-sm text-slate-600 bg-white border border-transparent hover:border-slate-200 flex items-center"
+                  >
+                    <div className="w-1.5 h-1.5 rounded-full bg-slate-300 mr-2"></div>
+                    {unit.name}
+                  </div>
+                  <button onClick={() => deleteUnit(unit)} className="text-slate-300 hover:text-red-500">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               ))}
                {selectedSubject && units.length === 0 && <p className="text-xs text-slate-400 p-2 text-center">No units added</p>}
