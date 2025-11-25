@@ -392,7 +392,7 @@ const AdminDashboard: React.FC = () => {
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary outline-none text-slate-700"
                   placeholder="e.g., Chapter 1 Introduction"
                   value={uploadData.title}
-                  onChange={(e) => setUploadData({ ...prev, title: e.target.value })}
+                  onChange={(e) => setUploadData(prev => ({ ...prev, title: e.target.value }))}
                   required
                 />
               </div>
