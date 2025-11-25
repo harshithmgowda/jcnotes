@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
-import { Branch, Semester, Subject, Unit } from '../types';
+import { Branch, Semester, Subject, Unit, Note } from '../types';
 import Button from '../components/Button';
-import { Upload, ChevronRight, Plus, Folder, Layout, BookOpen, Layers } from 'lucide-react';
+import { Upload, ChevronRight, Plus, Folder, Layout, BookOpen, Layers, Trash2 } from 'lucide-react';
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -43,6 +43,9 @@ const AdminDashboard: React.FC = () => {
 
   // Loading States
   const [uploading, setUploading] = useState(false);
+  const [recentNotes, setRecentNotes] = useState<Note[]>([]);
+  const [loadingNotes, setLoadingNotes] = useState(false);
+  const [deletingIds, setDeletingIds] = useState<Record<string, boolean>>({});
 
   // Auth Check
   useEffect(() => {
@@ -53,6 +56,7 @@ const AdminDashboard: React.FC = () => {
   // Initial Data Load
   useEffect(() => {
     fetchBranches();
+    fetchRecentNotes();
   }, []);
 
   // --- Fetch Helpers ---
@@ -74,6 +78,17 @@ const AdminDashboard: React.FC = () => {
   const fetchUnits = async (subjectId: string) => {
     const { data } = await supabase.from('units').select('*').eq('subject_id', subjectId).order('name');
     return data || [];
+  };
+
+  const fetchRecentNotes = async () => {
+    setLoadingNotes(true);
+    const { data } = await supabase
+      .from('notes')
+      .select(`*, units(*, subjects(*, semesters(*, branches(*))))`)
+      .order('created_at', { ascending: false })
+      .limit(8);
+    setRecentNotes(data as Note[] ?? []);
+    setLoadingNotes(false);
   };
 
   // --- Structure Management: Selection Handlers ---
@@ -231,6 +246,56 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const deleteNote = async (note: Note) => {
+    if (!confirm(`Delete note "${note.title}"?`)) return;
+    setDeletingIds(prev => ({ ...prev, [note.id]: true }));
+    try {
+      if (note.file_path) {
+        await supabase.storage.from('notes').remove([note.file_path]);
+      }
+      const { error } = await supabase.from('notes').delete().eq('id', note.id);
+      if (error) throw error;
+      setRecentNotes(prev => prev.filter(n => n.id !== note.id));
+      alert('Note deleted');
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setDeletingIds(prev => ({ ...prev, [note.id]: false }));
+    }
+  };
+
+  const deleteUnit = async (unit: Unit) => {
+    if (!confirm(`Delete unit "${unit.name}" and all its notes?`)) return;
+    const { error } = await supabase.from('units').delete().eq('id', unit.id);
+    if (error) return alert(error.message);
+    setUnits(prev => prev.filter(u => u.id !== unit.id));
+    alert('Unit deleted');
+  };
+
+  const deleteSubject = async (subject: Subject) => {
+    if (!confirm(`Delete subject "${subject.name}" and all its units?`)) return;
+    const { error } = await supabase.from('subjects').delete().eq('id', subject.id);
+    if (error) return alert(error.message);
+    setSubjects(prev => prev.filter(s => s.id !== subject.id));
+    alert('Subject deleted');
+  };
+
+  const deleteSemester = async (semester: Semester) => {
+    if (!confirm(`Delete semester "${semester.name}" and all its subjects?`)) return;
+    const { error } = await supabase.from('semesters').delete().eq('id', semester.id);
+    if (error) return alert(error.message);
+    setSemesters(prev => prev.filter(s => s.id !== semester.id));
+    alert('Semester deleted');
+  };
+
+  const deleteBranch = async (branch: Branch) => {
+    if (!confirm(`Delete branch "${branch.name}" and everything under it?`)) return;
+    const { error } = await supabase.from('branches').delete().eq('id', branch.id);
+    if (error) return alert(error.message);
+    setBranches(prev => prev.filter(b => b.id !== branch.id));
+    alert('Branch deleted');
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Header & Tabs */}
@@ -256,7 +321,7 @@ const AdminDashboard: React.FC = () => {
       </div>
 
       {activeTab === 'upload' ? (
-        <div className="max-w-3xl mx-auto">
+        <div className="grid lg:grid-cols-2 gap-6">
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
             <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center">
               <Upload className="w-5 h-5 mr-2 text-primary" />
@@ -347,8 +412,50 @@ const AdminDashboard: React.FC = () => {
               </Button>
             </form>
           </div>
-        </div>
-      ) : (
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-800">Recent uploads</h3>
+              <button
+                onClick={fetchRecentNotes}
+                className="text-sm text-primary hover:text-blue-700"
+                disabled={loadingNotes}
+              >
+                Refresh
+              </button>
+            </div>
+            {loadingNotes ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full" />
+              </div>
+            ) : recentNotes.length === 0 ? (
+              <p className="text-sm text-slate-500">No uploads yet.</p>
+            ) : (
+              <ul className="space-y-4">
+                {recentNotes.map(note => (
+                  <li key={note.id} className="border border-slate-100 rounded-lg p-4">
+                    <div className="flex justify-between items-start gap-3">
+                      <div>
+                        <p className="font-semibold text-slate-800">{note.title}</p>
+                        <p className="text-xs text-slate-500 mt-1 line-clamp-2">{note.file_name}</p>
+                        <p className="text-xs text-slate-400 mt-1">
+                          {note.branch?.name} / {note.semester?.name} / {note.subject?.name} / {note.unit?.name}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => deleteNote(note)}
+                        className="text-red-500 hover:text-red-600"
+                        disabled={!!deletingIds[note.id]}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+         </div>
+       ) : (
         /* STRUCTURE MANAGEMENT TAB */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 h-[calc(100vh-200px)] min-h-[500px]">
           
@@ -359,14 +466,18 @@ const AdminDashboard: React.FC = () => {
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
               {branches.map(branch => (
-                <button
-                  key={branch.id}
-                  onClick={() => handleSelectBranch(branch)}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center justify-between ${selectedBranch?.id === branch.id ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}
-                >
-                  {branch.name}
-                  <ChevronRight className={`w-4 h-4 ${selectedBranch?.id === branch.id ? 'text-indigo-500' : 'text-slate-300'}`} />
-                </button>
+                <div key={branch.id} className="flex items-center gap-2 group">
+                  <button
+                    onClick={() => handleSelectBranch(branch)}
+                    className={`flex-1 text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center justify-between ${selectedBranch?.id === branch.id ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    {branch.name}
+                    <ChevronRight className={`w-4 h-4 ${selectedBranch?.id === branch.id ? 'text-indigo-500' : 'text-slate-300'}`} />
+                  </button>
+                  <button onClick={() => deleteBranch(branch)} className="text-slate-300 hover:text-red-500">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               ))}
               {branches.length === 0 && <p className="text-xs text-slate-400 p-2 text-center">No branches</p>}
             </div>
