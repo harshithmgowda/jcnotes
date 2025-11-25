@@ -255,7 +255,7 @@ const AdminDashboard: React.FC = () => {
       }
       const { error } = await supabase.from('notes').delete().eq('id', note.id);
       if (error) throw error;
-      setRecentNotes(prev => prev.filter(n => n.id !== note.id));
+      fetchRecentNotes(); // Re-fetch notes to ensure UI is in sync with the database
       alert('Note deleted');
     } catch (err: any) {
       alert(err.message);
@@ -392,7 +392,7 @@ const AdminDashboard: React.FC = () => {
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary outline-none text-slate-700"
                   placeholder="e.g., Chapter 1 Introduction"
                   value={uploadData.title}
-                  onChange={(e) => setUploadData({ ...uploadData, title: e.target.value })}
+                  onChange={(e) => setUploadData({ ...prev, title: e.target.value })}
                   required
                 />
               </div>

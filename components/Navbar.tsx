@@ -52,7 +52,7 @@ const Navbar: React.FC = () => {
                       Admin
                     </Link>
                   )}
-                   <button 
+                  <button
                     onClick={handleStudentLogout}
                     className="text-sm font-medium text-red-500 hover:text-red-700"
                   >
@@ -62,8 +62,8 @@ const Navbar: React.FC = () => {
             )}
 
             {/* Guest View (No Name, No Admin) */}
-            {!isAdmin && !studentName && location.pathname !== '/student-login' && (
-               <Link 
+            {!isAdmin && !studentName && (
+               <Link
                to="/login" 
                className="text-sm font-medium text-slate-600 hover:text-primary transition-colors flex items-center gap-2"
              >
