@@ -42,7 +42,6 @@ const AdminDashboard: React.FC = () => {
   const [uploadUnits, setUploadUnits] = useState<Unit[]>([]);
 
   // Loading States
-  const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   // Auth Check
@@ -87,10 +86,8 @@ const AdminDashboard: React.FC = () => {
     setSubjects([]);
     setUnits([]);
     
-    setLoading(true);
     const data = await fetchSemesters(branch.id);
     setSemesters(data);
-    setLoading(false);
   };
 
   const handleSelectSemester = async (semester: Semester) => {
@@ -99,20 +96,16 @@ const AdminDashboard: React.FC = () => {
     setSubjects([]);
     setUnits([]);
 
-    setLoading(true);
     const data = await fetchSubjects(semester.id);
     setSubjects(data);
-    setLoading(false);
   };
 
   const handleSelectSubject = async (subject: Subject) => {
     setSelectedSubject(subject);
     setUnits([]);
 
-    setLoading(true);
     const data = await fetchUnits(subject.id);
     setUnits(data);
-    setLoading(false);
   };
 
   // --- Structure Management: Add Handlers ---
@@ -120,20 +113,17 @@ const AdminDashboard: React.FC = () => {
   const handleAddBranch = async (e: React.FormEvent) => {
     e.preventDefault();
     if(!newBranchName.trim()) return;
-    setLoading(true);
     const { error } = await supabase.from('branches').insert([{ name: newBranchName }]);
     if (error) alert(error.message);
     else {
       setNewBranchName('');
       fetchBranches();
     }
-    setLoading(false);
   };
 
   const handleAddSemester = async (e: React.FormEvent) => {
     e.preventDefault();
     if(!selectedBranch || !newSemesterName.trim()) return;
-    setLoading(true);
     const { error } = await supabase.from('semesters').insert([{ name: newSemesterName, branch_id: selectedBranch.id }]);
     if (error) alert(error.message);
     else {
@@ -141,13 +131,11 @@ const AdminDashboard: React.FC = () => {
       const data = await fetchSemesters(selectedBranch.id);
       setSemesters(data);
     }
-    setLoading(false);
   };
 
   const handleAddSubject = async (e: React.FormEvent) => {
     e.preventDefault();
     if(!selectedSemester || !newSubjectName.trim()) return;
-    setLoading(true);
     const { error } = await supabase.from('subjects').insert([{ name: newSubjectName, semester_id: selectedSemester.id }]);
     if (error) alert(error.message);
     else {
@@ -155,13 +143,11 @@ const AdminDashboard: React.FC = () => {
       const data = await fetchSubjects(selectedSemester.id);
       setSubjects(data);
     }
-    setLoading(false);
   };
 
   const handleAddUnit = async (e: React.FormEvent) => {
     e.preventDefault();
     if(!selectedSubject || !newUnitName.trim()) return;
-    setLoading(true);
     const { error } = await supabase.from('units').insert([{ name: newUnitName, subject_id: selectedSubject.id }]);
     if (error) alert(error.message);
     else {
@@ -169,7 +155,6 @@ const AdminDashboard: React.FC = () => {
       const data = await fetchUnits(selectedSubject.id);
       setUnits(data);
     }
-    setLoading(false);
   };
 
 
