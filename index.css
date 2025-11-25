@@ -1,0 +1,161 @@
+:root {
+  --bg: #f8fafc; /* slate-50 */
+  --surface: #ffffff;
+  --text: #0f172a; /* slate-900 */
+  --text-secondary: #334155; /* slate-700 */
+  --muted: #64748b; /* slate-500 */
+  --accent: #2563eb; /* primary */
+  --accent-hover: #1d4ed8; /* blue-700 */
+  --danger: #ef4444;
+  --border: #e2e8f0; /* slate-200 */
+  --input-bg: #ffffff;
+  --card-bg: #ffffff;
+  --card-border: rgba(15, 23, 42, 0.05);
+}
+
+/* Respect system preference by default */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f172a; /* slate-900 */
+    --surface: #1e293b; /* slate-800 */
+    --text: #f1f5f9; /* slate-100 */
+    --text-secondary: #cbd5e1; /* slate-300 */
+    --muted: #94a3b8; /* slate-400 */
+    --accent: #3b82f6; /* blue-500 */
+    --accent-hover: #60a5fa; /* blue-400 */
+    --danger: #f87171;
+    --border: #334155; /* slate-700 */
+    --input-bg: #1e293b;
+    --card-bg: #1e293b;
+    --card-border: rgba(241, 245, 249, 0.1);
+  }
+}
+
+/* When the JS toggles the `dark` class on <html>, use dark variables */
+.dark {
+  --bg: #0f172a; /* slate-900 */
+  --surface: #1e293b; /* slate-800 */
+  --text: #f1f5f9; /* slate-100 */
+  --text-secondary: #cbd5e1; /* slate-300 */
+  --muted: #94a3b8; /* slate-400 */
+  --accent: #3b82f6; /* blue-500 */
+  --accent-hover: #60a5fa; /* blue-400 */
+  --danger: #f87171;
+  --border: #334155; /* slate-700 */
+  --input-bg: #1e293b;
+  --card-bg: #1e293b;
+  --card-border: rgba(241, 245, 249, 0.1);
+}
+
+/* Basic element styles */
+html, body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--bg) !important;
+  color: var(--text) !important;
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+  background-color: var(--bg);
+}
+
+a {
+  color: var(--accent);
+}
+
+a:hover {
+  color: var(--accent-hover);
+}
+
+/* Override Tailwind classes for dark mode */
+.dark .bg-white {
+  background-color: var(--card-bg) !important;
+}
+
+.dark .bg-slate-50,
+.dark .bg-slate-100 {
+  background-color: var(--surface) !important;
+}
+
+.dark .text-slate-800,
+.dark .text-slate-900 {
+  color: var(--text) !important;
+}
+
+.dark .text-slate-700 {
+  color: var(--text-secondary) !important;
+}
+
+.dark .text-slate-500,
+.dark .text-slate-600 {
+  color: var(--muted) !important;
+}
+
+.dark .border-slate-200,
+.dark .border-slate-300 {
+  border-color: var(--border) !important;
+}
+
+.dark .border-slate-100 {
+  border-color: var(--card-border) !important;
+}
+
+/* Card surface */
+.surface {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  color: var(--text);
+}
+
+/* Make forms readable in dark mode */
+input, select, textarea {
+  background-color: var(--input-bg) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+
+.dark input::placeholder,
+.dark select::placeholder,
+.dark textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+.dark input:disabled,
+.dark select:disabled,
+.dark textarea:disabled {
+  background-color: var(--surface) !important;
+  color: var(--muted) !important;
+  opacity: 0.6;
+}
+
+/* Button overrides */
+button:hover {
+  background-color: var(--accent-hover);
+}
+
+/* Small responsive tweak */
+.max-w-7xl {
+  max-width: 100%;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+/* Utility: subtle muted text */
+.muted {
+  color: var(--muted);
+}
+
+/* Focus outline for accessibility */
+:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+

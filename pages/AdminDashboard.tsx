@@ -247,35 +247,78 @@ const AdminDashboard: React.FC = () => {
   };
 
   const deleteNote = async (note: Note) => {
-    if (!confirm(`Delete note "${note.title}"?`)) return;
+    if (!confirm(`Delete note "${note.title}"?\n\nThis will permanently remove the file and database record.`)) return;
+
     setDeletingIds(prev => ({ ...prev, [note.id]: true }));
+
     try {
-      // Step 1: Delete from storage
+      console.log('=== Starting deletion process ===');
+      console.log('Note ID:', note.id);
+      console.log('File path:', note.file_path);
+
+      // Step 1: Delete from storage (if file_path exists)
       if (note.file_path) {
-        console.log('Deleting file from storage:', note.file_path);
-        const { error: storageError } = await supabase.storage.from('notes').remove([note.file_path]);
+        console.log('Attempting to delete file from storage bucket "notes"...');
+
+        const { data: deleteData, error: storageError } = await supabase.storage
+          .from('notes')
+          .remove([note.file_path]);
+
+        console.log('Storage delete response:', { data: deleteData, error: storageError });
+
         if (storageError) {
-          console.error('Storage deletion error:', storageError);
-          // Continue even if storage deletion fails
+          console.error('❌ Storage deletion error:', storageError);
+
+          const msg = (storageError.message || '').toLowerCase();
+          const status = (storageError as any)?.status || 0;
+
+          console.log('Error details - Status:', status, 'Message:', msg);
+
+          // Check for permission errors
+          if (status === 403 || /permission|forbid|not allowed|unauthorized|insufficient|policy/i.test(msg)) {
+            alert('❌ Storage deletion failed due to permissions.\n\nYou need to add a DELETE policy in Supabase:\n\n1. Go to Supabase Dashboard → Storage → Policies\n2. Run this SQL in the SQL Editor:\n\ncreate policy "Public delete files"\non storage.objects\nfor delete\nusing ( bucket_id = \'notes\' );\n\nSee supabase-delete-policy.sql file for details.');
+            return;
+          }
+
+          // If file not found (already deleted), that's OK - proceed to DB delete
+          if (/not found|no such file|404/i.test(msg)) {
+            console.warn('⚠️ Storage file not found (may already be deleted), proceeding to remove DB record...');
+          } else {
+            // For other errors, abort to avoid inconsistency
+            alert(`❌ Storage deletion failed: ${storageError.message}\n\nCheck browser console for details. Aborting to avoid data inconsistency.`);
+            return;
+          }
+        } else {
+          console.log('✅ Storage file deleted successfully');
         }
+      } else {
+        console.warn('⚠️ No file_path in note record, skipping storage deletion');
       }
 
       // Step 2: Delete from database
-      console.log('Deleting note from database:', note.id);
-      const { error: dbError } = await supabase.from('notes').delete().eq('id', note.id);
+      console.log('Deleting note from database...');
+      const { error: dbError } = await supabase
+        .from('notes')
+        .delete()
+        .eq('id', note.id);
+
       if (dbError) {
-        console.error('Database deletion error:', dbError);
+        console.error('❌ Database deletion error:', dbError);
         throw dbError;
       }
+
+      console.log('✅ Database record deleted successfully');
 
       // Step 3: Re-fetch notes to ensure UI is in sync
       console.log('Re-fetching notes list...');
       await fetchRecentNotes();
 
-      alert('Note deleted successfully!');
+      console.log('=== Deletion process complete ===');
+      alert('✅ Note deleted successfully!');
+
     } catch (err: any) {
-      console.error('Deletion failed:', err);
-      alert(`Deletion failed: ${err.message || 'Unknown error'}`);
+      console.error('❌ Deletion failed with exception:', err);
+      alert(`❌ Deletion failed: ${err.message || 'Unknown error'}\n\nCheck browser console for details.`);
     } finally {
       setDeletingIds(prev => ({ ...prev, [note.id]: false }));
     }
@@ -322,20 +365,20 @@ const AdminDashboard: React.FC = () => {
           <p className="text-slate-500">Manage your course content efficiently.</p>
         </div>
         <div className="bg-white p-1 rounded-lg border border-slate-200 shadow-sm flex">
-          <button
-            onClick={() => setActiveTab('upload')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'upload' ? 'bg-primary text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
-          >
-            Upload Notes
-          </button>
-          <button
-            onClick={() => setActiveTab('structure')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'structure' ? 'bg-primary text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
-          >
-            Manage Structure
-          </button>
+           <button
+             onClick={() => setActiveTab('upload')}
+             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'upload' ? 'bg-primary text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
+           >
+             Upload Notes
+           </button>
+           <button
+             onClick={() => setActiveTab('structure')}
+             className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'structure' ? 'bg-primary text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'}`}
+           >
+             Manage Structure
+           </button>
+          </div>
         </div>
-      </div>
 
       {activeTab === 'upload' ? (
         <div className="grid lg:grid-cols-2 gap-6">
