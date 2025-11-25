@@ -11,7 +11,7 @@ const StudentLogin: React.FC = () => {
     e.preventDefault();
     if (name.trim()) {
       localStorage.setItem('student_name', name.trim());
-      navigate('/');
+      navigate('/student');
     }
   };
 

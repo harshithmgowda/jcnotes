@@ -18,9 +18,9 @@ const StudentPortal: React.FC = () => {
     const name = localStorage.getItem('student_name');
     if (!name) {
       navigate('/student-login');
-    } else {
-      setStudentName(name);
+      return;
     }
+    setStudentName(name);
   }, [navigate]);
 
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -377,4 +377,3 @@ const StudentPortal: React.FC = () => {
 };
 
 export default StudentPortal;
-
