@@ -2,13 +2,24 @@
   "name": "jc-notes",
   "version": "1.0.0",
   "description": "",
-  "main": "dist/index.js",
+  "private": true,
   "scripts": {
-    "build": "tsc"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.1",
+    "lucide-react": "^0.469.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0"
+  },
   "devDependencies": {
-    "typescript": "^5.5.3"
-  },
-  "private": true
+    "@types/react": "^18.3.10",
+    "@types/react-dom": "^18.3.5",
+    "typescript": "^5.5.3",
+    "vite": "^5.4.1",
+    "@vitejs/plugin-react": "^4.3.1"
+  }
 }

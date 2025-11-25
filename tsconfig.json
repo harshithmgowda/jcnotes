@@ -24,6 +24,15 @@
     "forceConsistentCasingInFileNames": true,
     "outDir": "dist"
   },
-  "include": ["src", "**/*.ts", "**/*.tsx", "vite-env.d.ts"],
+  "include": [
+    "src",
+    "components",
+    "pages",
+    "services",
+    "App.tsx",
+    "index.tsx",
+    "types.ts",
+    "vite-env.d.ts"
+  ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
