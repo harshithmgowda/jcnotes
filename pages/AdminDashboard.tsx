@@ -250,18 +250,32 @@ const AdminDashboard: React.FC = () => {
     if (!confirm(`Delete note "${note.title}"?`)) return;
     setDeletingIds(prev => ({ ...prev, [note.id]: true }));
     try {
+      // Step 1: Delete from storage
       if (note.file_path) {
-        await supabase.storage.from('notes').remove([note.file_path]);
+        console.log('Deleting file from storage:', note.file_path);
+        const { error: storageError } = await supabase.storage.from('notes').remove([note.file_path]);
+        if (storageError) {
+          console.error('Storage deletion error:', storageError);
+          // Continue even if storage deletion fails
+        }
       }
-      const { error } = await supabase.from('notes').delete().eq('id', note.id);
-      if (error) throw error;
 
-      // Re-fetch notes from the database to ensure the UI is in sync
+      // Step 2: Delete from database
+      console.log('Deleting note from database:', note.id);
+      const { error: dbError } = await supabase.from('notes').delete().eq('id', note.id);
+      if (dbError) {
+        console.error('Database deletion error:', dbError);
+        throw dbError;
+      }
+
+      // Step 3: Re-fetch notes to ensure UI is in sync
+      console.log('Re-fetching notes list...');
       await fetchRecentNotes();
 
-      alert('Note deleted');
+      alert('Note deleted successfully!');
     } catch (err: any) {
-      alert(`Deletion failed: ${err.message}`);
+      console.error('Deletion failed:', err);
+      alert(`Deletion failed: ${err.message || 'Unknown error'}`);
     } finally {
       setDeletingIds(prev => ({ ...prev, [note.id]: false }));
     }
