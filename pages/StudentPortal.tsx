@@ -350,15 +350,25 @@ const StudentPortal: React.FC = () => {
                 </p>
               </div>
               <div className="bg-slate-50 px-5 py-3 border-t border-slate-100">
-                <a
-                  href={note.file_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 text-sm font-medium text-primary hover:text-blue-700 transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  Download / View
-                </a>
+                <div className="flex gap-2">
+                  <a
+                    href={note.file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-primary hover:bg-blue-700 rounded-lg transition-colors"
+                  >
+                    <FileText className="w-4 h-4" />
+                    View
+                  </a>
+                  <a
+                    href={note.file_url}
+                    download={note.file_name}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-primary bg-white border border-primary hover:bg-primary/5 rounded-lg transition-colors"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download
+                  </a>
+                </div>
               </div>
             </div>
           ))}
