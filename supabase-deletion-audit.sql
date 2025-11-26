@@ -12,4 +12,3 @@ create table if not exists deletion_audit (
 
 -- Optional index to query by note_id quickly
 create index if not exists idx_deletion_audit_note_id on deletion_audit(note_id);
-
