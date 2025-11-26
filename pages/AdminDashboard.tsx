@@ -47,6 +47,9 @@ const AdminDashboard: React.FC = () => {
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [deletingIds, setDeletingIds] = useState<Record<string, boolean>>({});
 
+  // Quick upload form state (for creating missing structure in one step)
+  const [quick, setQuick] = useState<{ branchName: string; semesterName: string; subjectName: string; unitName: string; title: string }>({ branchName: '', semesterName: '', subjectName: '', unitName: '', title: '' });
+
   // Admin validation: verify current session email against VITE_ADMIN_EMAILS; if that env is empty, allow localStorage fallback for dev
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
@@ -330,6 +333,46 @@ const AdminDashboard: React.FC = () => {
     } catch (error: any) {
       console.error('Upload error:', error);
       alert(`Error uploading note: ${error.message || JSON.stringify(error)}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Quick upload: create missing branch/semester/subject/unit then upload
+  const handleQuickUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isAdmin) return alert('Only admins can upload notes');
+    if (!file) return alert('Please select a file');
+    if (!quick.branchName || !quick.semesterName || !quick.subjectName || !quick.unitName || !quick.title) return alert('Please fill all quick fields');
+
+    setUploading(true);
+    try {
+      const branchId = await findOrCreateBranch(quick.branchName.trim());
+      const semesterId = await findOrCreateSemester(branchId, quick.semesterName.trim());
+      const subjectId = await findOrCreateSubject(semesterId, quick.subjectName.trim());
+      const unitId = await findOrCreateUnit(subjectId, quick.unitName.trim());
+
+      const fileName = `${Date.now()}_${file.name.replace(/\s/g, '_')}`;
+      const filePath = `${branchId}/${semesterId}/${subjectId}/${unitId}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage.from('notes').upload(filePath, file, { upsert: false });
+      if (uploadError) throw uploadError;
+
+      const { data: publicData } = supabase.storage.from('notes').getPublicUrl(filePath);
+      const publicUrl = (publicData && (publicData as any).publicUrl) || '';
+
+      const { error: dbError } = await supabase.from('notes').insert([{ unit_id: unitId, title: quick.title.trim(), file_name: file.name, file_url: publicUrl, file_path: filePath }]);
+      if (dbError) throw dbError;
+
+      alert('Quick upload successful');
+      setQuick({ branchName: '', semesterName: '', subjectName: '', unitName: '', title: '' });
+      setFile(null);
+      const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+      await fetchRecentNotes();
+    } catch (err: any) {
+      console.error('Quick upload failed:', err);
+      alert(`Quick upload error: ${err.message || JSON.stringify(err)}`);
     } finally {
       setUploading(false);
     }
