@@ -10,6 +10,8 @@ const StudentLogin: React.FC = () => {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim()) {
+      // Clear any admin session and set student session
+      localStorage.removeItem('jc_notes_admin');
       localStorage.setItem('student_name', name.trim());
       navigate('/student');
     }
