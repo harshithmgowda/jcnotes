@@ -11,6 +11,8 @@ const Login: React.FC = () => {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (password === 'rcb') {
+      // Clear any student session and set admin session
+      localStorage.removeItem('student_name');
       localStorage.setItem('jc_notes_admin', 'true');
       navigate('/admin');
     } else {
