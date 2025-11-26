@@ -37,7 +37,7 @@ const StudentLogin: React.FC = () => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all"
-              placeholder="e.g. John Doe"
+              placeholder="e.g. Harshith"
               required
               autoFocus
             />
