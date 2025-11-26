@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { BookOpen, LogOut, ShieldCheck, User, Menu, X, Moon, Sun } from 'lucide-react';
+import { LogOut, ShieldCheck, User, Menu, X, Moon, Sun } from 'lucide-react';
 
 const Navbar: React.FC = () => {
   const location = useLocation();
@@ -111,9 +111,7 @@ const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           <div className="flex items-center cursor-pointer" onClick={() => navigateAndClose('/')}>
-            <div className="bg-primary/10 p-2 rounded-lg mr-3">
-              <BookOpen className="h-6 w-6 text-primary" />
-            </div>
+            <img src="/logo.svg" alt="JC Notes Logo" className="h-10 w-10 mr-3" />
             <span className="font-bold text-xl tracking-tight text-slate-800">JC Notes</span>
           </div>
 
