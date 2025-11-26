@@ -36,4 +36,3 @@ create policy "Public delete units"
 on units
 for delete
 using (true);
-
