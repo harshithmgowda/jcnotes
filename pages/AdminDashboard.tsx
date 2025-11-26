@@ -429,6 +429,7 @@ const AdminDashboard: React.FC = () => {
 
   const deleteUnit = async (unit: Unit) => {
     if (!confirm(`Delete unit "${unit.name}" and all its notes?`)) return;
+    if (!isAdmin) return alert('Only admins can delete units.');
     const { error } = await supabase.from('units').delete().eq('id', unit.id);
     if (error) return alert(error.message);
     setUnits(prev => prev.filter(u => u.id !== unit.id));
@@ -437,6 +438,7 @@ const AdminDashboard: React.FC = () => {
 
   const deleteSubject = async (subject: Subject) => {
     if (!confirm(`Delete subject "${subject.name}" and all its units?`)) return;
+    if (!isAdmin) return alert('Only admins can delete subjects.');
     const { error } = await supabase.from('subjects').delete().eq('id', subject.id);
     if (error) return alert(error.message);
     setSubjects(prev => prev.filter(s => s.id !== subject.id));
@@ -445,6 +447,7 @@ const AdminDashboard: React.FC = () => {
 
   const deleteSemester = async (semester: Semester) => {
     if (!confirm(`Delete semester "${semester.name}" and all its subjects?`)) return;
+    if (!isAdmin) return alert('Only admins can delete semesters.');
     const { error } = await supabase.from('semesters').delete().eq('id', semester.id);
     if (error) return alert(error.message);
     setSemesters(prev => prev.filter(s => s.id !== semester.id));
@@ -453,6 +456,7 @@ const AdminDashboard: React.FC = () => {
 
   const deleteBranch = async (branch: Branch) => {
     if (!confirm(`Delete branch "${branch.name}" and everything under it?`)) return;
+    if (!isAdmin) return alert('Only admins can delete branches.');
     const { error } = await supabase.from('branches').delete().eq('id', branch.id);
     if (error) return alert(error.message);
     setBranches(prev => prev.filter(b => b.id !== branch.id));
