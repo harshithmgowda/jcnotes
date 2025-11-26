@@ -379,43 +379,45 @@ const AdminDashboard: React.FC = () => {
   };
 
   const deleteNote = async (note: Note) => {
+    if (!isAdmin) return alert('Only admins can delete notes.');
     if (!confirm(`Delete note "${note.title}"?\n\nThis will permanently remove the file and database record.`)) return;
 
     setDeletingIds(prev => ({ ...prev, [note.id]: true }));
 
     try {
-      console.log('=== Starting deletion (server) process ===');
+      console.log('Starting direct deletion for note:', note.id);
 
-      // Get Supabase session access token
-      const session = await supabase.auth.getSession();
-      const accessToken = session?.data?.session?.access_token;
+      // Step 1: Delete file from storage if file_path exists
+      if (note.file_path) {
+        console.log('Deleting file from storage:', note.file_path);
+        const { error: storageError } = await supabase.storage
+          .from('notes')
+          .remove([note.file_path]);
 
-      if (!accessToken) {
-        alert('You must be logged in as an admin to delete notes.');
+        if (storageError) {
+          console.warn('Storage delete error (file may not exist):', storageError);
+          // Continue anyway - file might already be deleted
+        } else {
+          console.log('✅ File deleted from storage');
+        }
+      }
+
+      // Step 2: Delete database record
+      console.log('Deleting database record for note:', note.id);
+      const { error: dbError } = await supabase
+        .from('notes')
+        .delete()
+        .eq('id', note.id);
+
+      if (dbError) {
+        console.error('Database delete error:', dbError);
+        alert(`Failed to delete note from database: ${dbError.message}`);
         return;
       }
 
-      const serverUrl = (import.meta.env.VITE_DELETE_SERVER_URL) || window.location.origin;
-      const res = await fetch(`${serverUrl}/delete-note`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({ id: note.id })
-      });
+      console.log('✅ Database record deleted');
 
-      const payload = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        console.error('Server delete failed:', payload || res.statusText);
-        alert(`Delete failed: ${(payload && payload.message) || res.statusText}`);
-        return;
-      }
-
-      console.log('Server delete response:', payload);
-
-      // Re-fetch notes to update UI
+      // Step 3: Update UI
       await fetchRecentNotes();
       alert('✅ Note deleted successfully!');
 
