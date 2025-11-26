@@ -47,10 +47,52 @@ const AdminDashboard: React.FC = () => {
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [deletingIds, setDeletingIds] = useState<Record<string, boolean>>({});
 
-  // Auth Check
+  // Admin validation: verify current session email against VITE_ADMIN_EMAILS; if that env is empty, allow localStorage fallback for dev
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+
   useEffect(() => {
-    const isAuth = localStorage.getItem('jc_notes_admin') === 'true';
-    if (!isAuth) navigate('/login');
+    const validate = async () => {
+      try {
+        const envList = (import.meta.env.VITE_ADMIN_EMAILS || '') as string;
+        const admins = envList.split(',').map(s => s.trim()).filter(Boolean);
+
+        const { data } = await supabase.auth.getSession();
+        const email = data?.session?.user?.email || '';
+
+        if (admins.length > 0) {
+          // production mode: require email to match admin list
+          if (email && admins.includes(email)) {
+            setIsAdmin(true);
+            localStorage.setItem('jc_notes_admin', 'true');
+            return;
+          }
+          // not admin -> redirect
+          localStorage.removeItem('jc_notes_admin');
+          navigate('/login');
+          return;
+        }
+
+        // no admins configured -> allow localStorage dev flag OR email
+        if (email) {
+          setIsAdmin(true);
+          localStorage.setItem('jc_notes_admin', 'true');
+          return;
+        }
+        if (localStorage.getItem('jc_notes_admin') === 'true') {
+          setIsAdmin(true);
+          return;
+        }
+
+        localStorage.removeItem('jc_notes_admin');
+        navigate('/login');
+      } catch (err) {
+        console.error('Failed to validate admin:', err);
+        localStorage.removeItem('jc_notes_admin');
+        navigate('/login');
+      }
+    };
+
+    validate();
   }, [navigate]);
 
   // Initial Data Load
@@ -91,6 +133,40 @@ const AdminDashboard: React.FC = () => {
     setLoadingNotes(false);
   };
 
+  // --- Helpers: find or create entities (used by Quick Upload) ---
+  const findOrCreateBranch = async (name: string) => {
+    const existing = branches.find(b => b.name.toLowerCase() === name.toLowerCase());
+    if (existing) return existing.id;
+    const { data, error } = await supabase.from('branches').insert([{ name }]).select().single();
+    if (error) throw error;
+    await fetchBranches();
+    return (data as any).id;
+  };
+
+  const findOrCreateSemester = async (branchId: string, name: string) => {
+    const { data: found } = await supabase.from('semesters').select('*').eq('branch_id', branchId).eq('name', name).limit(1).single();
+    if (found) return (found as any).id;
+    const { data, error } = await supabase.from('semesters').insert([{ name, branch_id: branchId }]).select().single();
+    if (error) throw error;
+    return (data as any).id;
+  };
+
+  const findOrCreateSubject = async (semesterId: string, name: string) => {
+    const { data: found } = await supabase.from('subjects').select('*').eq('semester_id', semesterId).eq('name', name).limit(1).single();
+    if (found) return (found as any).id;
+    const { data, error } = await supabase.from('subjects').insert([{ name, semester_id: semesterId }]).select().single();
+    if (error) throw error;
+    return (data as any).id;
+  };
+
+  const findOrCreateUnit = async (subjectId: string, name: string) => {
+    const { data: found } = await supabase.from('units').select('*').eq('subject_id', subjectId).eq('name', name).limit(1).single();
+    if (found) return (found as any).id;
+    const { data, error } = await supabase.from('units').insert([{ name, subject_id: subjectId }]).select().single();
+    if (error) throw error;
+    return (data as any).id;
+  };
+
   // --- Structure Management: Selection Handlers ---
   
   const handleSelectBranch = async (branch: Branch) => {
@@ -127,6 +203,7 @@ const AdminDashboard: React.FC = () => {
 
   const handleAddBranch = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isAdmin) return alert('Only admins can add branches');
     if(!newBranchName.trim()) return;
     const { error } = await supabase.from('branches').insert([{ name: newBranchName }]);
     if (error) alert(error.message);
@@ -339,6 +416,7 @@ const AdminDashboard: React.FC = () => {
     alert('Branch deleted');
   };
 
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Header & Tabs */}
@@ -370,90 +448,118 @@ const AdminDashboard: React.FC = () => {
               <Upload className="w-5 h-5 mr-2 text-primary" />
               Upload New Material
             </h2>
-            <form onSubmit={handleUpload} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Branch</label>
-                  <select
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white text-slate-700"
-                    value={uploadData.branchId}
-                    onChange={(e) => handleUploadBranchSelect(e.target.value)}
-                    required
-                  >
-                    <option value="">Select Branch</option>
-                    {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                   <label className="block text-sm font-medium text-slate-700 mb-1">Semester</label>
-                   <select
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white text-slate-700 disabled:bg-slate-50 disabled:text-slate-400"
-                    value={uploadData.semesterId}
-                    onChange={(e) => handleUploadSemesterSelect(e.target.value)}
-                    disabled={!uploadData.branchId}
-                    required
-                  >
-                    <option value="">Select Semester</option>
-                    {uploadSemesters.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
+            {!isAdmin ? (
+              <div className="p-6 rounded-lg bg-slate-50 text-center">
+                <p className="text-sm text-slate-600">You don't have admin access. Only admins can upload or delete notes.</p>
+                <p className="text-xs text-slate-400 mt-2">If you are an admin, make sure your Supabase session email is listed in <code>VITE_ADMIN_EMAILS</code>.</p>
               </div>
+            ) : (
+              <>
+                <form onSubmit={handleUpload} className="space-y-6">
+                  {/* standard upload form */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Branch</label>
+                      <select
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white text-slate-700"
+                        value={uploadData.branchId}
+                        onChange={(e) => handleUploadBranchSelect(e.target.value)}
+                        required
+                      >
+                        <option value="">Select Branch</option>
+                        {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Semester</label>
+                      <select
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white text-slate-700 disabled:bg-slate-50 disabled:text-slate-400"
+                        value={uploadData.semesterId}
+                        onChange={(e) => handleUploadSemesterSelect(e.target.value)}
+                        disabled={!uploadData.branchId}
+                        required
+                      >
+                        <option value="">Select Semester</option>
+                        {uploadSemesters.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Subject</label>
-                  <select
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white text-slate-700 disabled:bg-slate-50 disabled:text-slate-400"
-                    value={uploadData.subjectId}
-                    onChange={(e) => handleUploadSubjectSelect(e.target.value)}
-                    disabled={!uploadData.semesterId}
-                    required
-                  >
-                    <option value="">Select Subject</option>
-                    {uploadSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Subject</label>
+                      <select
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white text-slate-700 disabled:bg-slate-50 disabled:text-slate-400"
+                        value={uploadData.subjectId}
+                        onChange={(e) => handleUploadSubjectSelect(e.target.value)}
+                        disabled={!uploadData.semesterId}
+                        required
+                      >
+                        <option value="">Select Subject</option>
+                        {uploadSubjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Unit</label>
+                      <select
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white text-slate-700 disabled:bg-slate-50 disabled:text-slate-400"
+                        value={uploadData.unitId}
+                        onChange={(e) => setUploadData({ ...uploadData, unitId: e.target.value })}
+                        disabled={!uploadData.subjectId}
+                        required
+                      >
+                        <option value="">Select Unit</option>
+                        {uploadUnits.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Note Title</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary outline-none text-slate-700"
+                      placeholder="e.g., Chapter 1 Introduction"
+                      value={uploadData.title}
+                      onChange={(e) => setUploadData(prev => ({ ...prev, title: e.target.value }))}
+                      required
+                    />
+                  </div>
+
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 hover:bg-blue-50 hover:border-blue-300 transition-all cursor-pointer">
+                    <input
+                      type="file"
+                      id="file-upload"
+                      className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                      onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
+                      required
+                    />
+                  </div>
+
+                  <Button type="submit" isLoading={uploading} className="w-full py-3">
+                    Upload Note
+                  </Button>
+                </form>
+
+                {/* Quick upload */}
+                <div className="mt-6 border-t pt-6">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-2">Quick Upload (create missing structure)</h3>
+                  <form onSubmit={handleQuickUpload} className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <input value={quick.branchName} onChange={e => setQuick(prev => ({ ...prev, branchName: e.target.value }))} placeholder="Branch name" className="px-3 py-2 border rounded" />
+                      <input value={quick.semesterName} onChange={e => setQuick(prev => ({ ...prev, semesterName: e.target.value }))} placeholder="Semester name" className="px-3 py-2 border rounded" />
+                      <input value={quick.subjectName} onChange={e => setQuick(prev => ({ ...prev, subjectName: e.target.value }))} placeholder="Subject name" className="px-3 py-2 border rounded" />
+                      <input value={quick.unitName} onChange={e => setQuick(prev => ({ ...prev, unitName: e.target.value }))} placeholder="Unit name" className="px-3 py-2 border rounded" />
+                    </div>
+                    <input value={quick.title} onChange={e => setQuick(prev => ({ ...prev, title: e.target.value }))} placeholder="Note title" className="w-full px-3 py-2 border rounded" />
+                    <div className="flex gap-2">
+                      <Button type="submit" isLoading={uploading}>Quick Upload</Button>
+                      <button type="button" onClick={() => { setQuick({ branchName: '', semesterName: '', subjectName: '', unitName: '', title: '' }); setFile(null); const fi = document.getElementById('file-upload') as HTMLInputElement; if (fi) fi.value = ''; }} className="px-4 py-2 border rounded">Clear</button>
+                    </div>
+                  </form>
                 </div>
-                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Unit</label>
-                  <select
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary outline-none bg-white text-slate-700 disabled:bg-slate-50 disabled:text-slate-400"
-                    value={uploadData.unitId}
-                    onChange={(e) => setUploadData({ ...uploadData, unitId: e.target.value })}
-                    disabled={!uploadData.subjectId}
-                    required
-                  >
-                    <option value="">Select Unit</option>
-                    {uploadUnits.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Note Title</label>
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary outline-none text-slate-700"
-                  placeholder="e.g., Chapter 1 Introduction"
-                  value={uploadData.title}
-                  onChange={(e) => setUploadData(prev => ({ ...prev, title: e.target.value }))}
-                  required
-                />
-              </div>
-
-              <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 hover:bg-blue-50 hover:border-blue-300 transition-all cursor-pointer">
-                <input
-                  type="file"
-                  id="file-upload"
-                  className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-                  onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
-                  required
-                />
-              </div>
-
-              <Button type="submit" isLoading={uploading} className="w-full py-3">
-                Upload Note
-              </Button>
-            </form>
+              </>
+            )}
           </div>
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <div className="flex items-center justify-between mb-4">
@@ -480,17 +586,20 @@ const AdminDashboard: React.FC = () => {
                       <div>
                         <p className="font-semibold text-slate-800">{note.title}</p>
                         <p className="text-xs text-slate-500 mt-1 line-clamp-2">{note.file_name}</p>
-                        <p className="text-xs text-slate-400 mt-1">
-                          {note.branch?.name} / {note.semester?.name} / {note.subject?.name} / {note.unit?.name}
-                        </p>
+                        <p className="text-xs text-slate-400 mt-1">{note.branch?.name} / {note.semester?.name} / {note.subject?.name} / {note.unit?.name}</p>
                       </div>
-                      <button
-                        onClick={() => deleteNote(note)}
-                        className="text-red-500 hover:text-red-600"
-                        disabled={!!deletingIds[note.id]}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {isAdmin && (
+                          <button
+                            onClick={() => deleteNote(note)}
+                            className="text-red-500 hover:text-red-600"
+                            disabled={!!deletingIds[note.id]}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        <a href={note.file_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary">Open</a>
+                      </div>
                     </div>
                   </li>
                 ))}
