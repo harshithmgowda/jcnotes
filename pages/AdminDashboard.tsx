@@ -638,6 +638,10 @@ const AdminDashboard: React.FC = () => {
                         <p className="text-xs text-slate-400 mt-1">{note.branch?.name} / {note.semester?.name} / {note.subject?.name} / {note.unit?.name}</p>
                       </div>
                       <div className="flex items-center gap-2">
+                        <div className="flex gap-2">
+                          <a href={note.file_url} target="_blank" rel="noopener noreferrer" className="text-xs px-2 py-1 bg-primary text-white rounded hover:bg-blue-700 transition">View</a>
+                          <a href={note.file_url} download={note.file_name} className="text-xs px-2 py-1 border border-primary text-primary rounded hover:bg-primary/5 transition">Download</a>
+                        </div>
                         {isAdmin && (
                           <button
                             onClick={() => deleteNote(note)}
@@ -647,7 +651,6 @@ const AdminDashboard: React.FC = () => {
                             <Trash2 className="w-4 h-4" />
                           </button>
                         )}
-                        <a href={note.file_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary">Open</a>
                       </div>
                     </div>
                   </li>
